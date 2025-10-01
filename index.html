@@ -1,321 +1,331 @@
-import React, { useState } from 'react';
-import { Database, Server, Globe, Zap, Shield, GitBranch, Users, DollarSign, Bell, ArrowRight, Lock, Cloud, Code, CheckCircle } from 'lucide-react';
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FloodSeal Solutions - Enterprise Architecture</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+    const { Database, Server, Globe, Zap, Shield, GitBranch, Users, DollarSign, Bell, ArrowRight, Lock, Cloud, Code, CheckCircle } = lucide;
 
-const FloodSealArchitecture = () => {
-  const [activeFlow, setActiveFlow] = useState('lead');
+    const FloodSealArchitecture = () => {
+      const [activeFlow, setActiveFlow] = useState('lead');
 
-  const flows = {
-    lead: {
-      title: 'Lead Capture & Referral Attribution',
-      color: 'blue',
-      steps: [
-        { layer: 'User', icon: Users, text: 'Customer visits floodsealsolutions.com/?ref=nib_abc123', tech: 'Browser / URL Parameter' },
-        { layer: 'WordPress', icon: Globe, text: 'Elementor form captures: Name, Email, Phone, Property Address + referral token', tech: 'PHP 8.2 / Astra Child Theme / Custom Functions' },
-        { layer: 'Bridge API', icon: Server, text: 'POST to api.floodsealsolutions.com/referrer/nib_abc123 - Resolve token to CFA/CFP IDs + Names', tech: 'FastAPI (Python 3.11) / Uvicorn / SHA256 Token Hash Lookup' },
-        { layer: 'Database', icon: Database, text: 'Query referral_tokens table (hashed), join contacts table for display names, check referrer_rep_assignments for CFA→CFP mapping', tech: 'PostgreSQL 15 / Effective-dated temporal queries / btree_gist exclusion constraints' },
-        { layer: 'Bridge API', icon: Server, text: 'Return JSON: {contact_id, name, cfp_id, cfp_name} - Resolved referral hierarchy', tech: 'Pydantic models / JSON serialization' },
-        { layer: 'WordPress', icon: Globe, text: 'Create/update GHL contact with referrer metadata: Referrer_name, Referrer_contact_id, CFP_name, CFP_nib', tech: 'wp_remote_post to GHL API / Custom field mapping' },
-        { layer: 'GoHighLevel', icon: Cloud, text: 'Contact created with Lead Type = "Flood Lead", custom fields populated, tagged "potential-flood-customer"', tech: 'GHL REST API v2 / Location ID: 0eSS4yw5RxqXVkXbocGJ' },
-        { layer: 'Bridge API', icon: Server, text: 'Background task: Insert referral_links record (lead_id, cfa_id, cfp_id, owner_id, lead_kind="customer")', tech: 'Immutable audit trail / Created_at timestamp' },
-        { layer: 'WooCommerce', icon: DollarSign, text: 'Add Panel Protection Plan ($997) to cart, apply CFA discount if ref=cfa_*, redirect to checkout', tech: 'WC_Cart API / Session storage / Coupon validation' },
-        { layer: 'User', icon: Users, text: 'Complete Stripe payment ($997 or discounted)', tech: 'Stripe Checkout / PCI-compliant tokenization' }
-      ]
-    },
-    cfa: {
-      title: 'CFA (Agent) Signup & Token Issuance',
-      color: 'green',
-      steps: [
-        { layer: 'User', icon: Users, text: 'CFA applicant visits /cfa-signup, fills application with referral code', tech: 'Browser / Query param ?ref=nib_xyz789' },
-        { layer: 'WordPress', icon: Globe, text: 'Custom CFA form captures: Business info, licenses, referrer token', tech: 'PHP custom form / AJAX submission' },
-        { layer: 'Bridge API', icon: Server, text: 'Resolve referrer (could be CFP or another CFA), create GHL contact with role=CFA', tech: 'POST /lead/submit with lead_kind=cfa_application' },
-        { layer: 'GoHighLevel', icon: Cloud, text: 'Contact created with Lead Type = "CFA Lead", custom fields: Referrer_name, Referrer_contact_id', tech: 'GHL Contacts API / Custom field IDs from ghl:custom-fields.json' },
-        { layer: 'WooCommerce', icon: DollarSign, text: 'Add CFA Program ($499) to cart, apply referral discount if applicable', tech: 'Product ID: 1155 / WC_Cart / Session management' },
-        { layer: 'User', icon: Users, text: 'Complete payment ($499 or discounted)', tech: 'Stripe payment processing' },
-        { layer: 'WordPress', icon: Globe, text: 'woocommerce_payment_complete hook: Update GHL tags to "CFA-Paid", "CFA-Active"', tech: 'WooCommerce action hooks / GHL tag API' },
-        { layer: 'Bridge API', icon: Server, text: 'POST /token/issue - Generate unique referral token for new CFA', tech: 'secrets.token_urlsafe(16) / SHA256 hash / Store in referral_tokens table' },
-        { layer: 'Database', icon: Database, text: 'Insert referral_tokens: owner_id=CFA_contact_id, token_hash=sha256(nib), purpose="customer_funnel", expires_at=NULL', tech: 'Postgres INSERT / Enforce owner role=cfa or cfp via trigger' },
-        { layer: 'Bridge API', icon: Server, text: 'Return cleartext token ONCE: nib_generated_token (never stored)', tech: 'Return in API response only / Token displayed to user' },
-        { layer: 'GoHighLevel', icon: Cloud, text: 'Update contact custom field: Token_generated = nib_generated_token', tech: 'GHL Custom Fields API / Field ID: GHL_TOKEN_GENERATED_FIELD_ID' },
-        { layer: 'User', icon: Users, text: 'CFA receives email with referral link: floodsealsolutions.com/?ref=nib_generated_token', tech: 'GHL workflow automation / Email delivery' }
-      ]
-    },
-    cfp: {
-      title: 'CFP (Rep) Signup & Downline Assignment',
-      color: 'purple',
-      steps: [
-        { layer: 'User', icon: Users, text: 'CFP applicant visits /cfp-signup, submits application', tech: 'Browser form submission' },
-        { layer: 'WordPress', icon: Globe, text: 'CFP application form with sales experience, territory, credentials', tech: 'Custom PHP form handler' },
-        { layer: 'Bridge API', icon: Server, text: 'Create GHL contact with role=CFP, Lead Type = "CFP Lead"', tech: 'POST to GHL Contacts API' },
-        { layer: 'WooCommerce', icon: DollarSign, text: 'Add CFP Program ($1,000) to cart', tech: 'Product ID for CFP enrollment' },
-        { layer: 'User', icon: Users, text: 'Complete payment ($1,000)', tech: 'Stripe payment processing' },
-        { layer: 'WordPress', icon: Globe, text: 'Payment hook: Update GHL tags to "CFP-Paid", "CFP-Active", update contact role', tech: 'WooCommerce hooks / GHL API updates' },
-        { layer: 'Bridge API', icon: Server, text: 'POST /token/issue - Generate CFP referral token', tech: 'Token generation / Hashing / Storage' },
-        { layer: 'Database', icon: Database, text: 'Insert referral_tokens with owner_id=CFP_contact_id, purpose="cfa_recruitment"', tech: 'Postgres INSERT with role validation' },
-        { layer: 'Admin', icon: Shield, text: 'Admin assigns CFA downline to CFP via internal tool', tech: 'Future admin dashboard / Manual assignment for now' },
-        { layer: 'Bridge API', icon: Server, text: 'POST /rep/assign - Create referrer_rep_assignment record', tech: 'Effective-dated assignment / Overlap prevention' },
-        { layer: 'Database', icon: Database, text: 'INSERT referrer_rep_assignments: cfa_id, cfp_id, starts_at=NOW(), ends_at=NULL', tech: 'Temporal table with exclusion constraint / No overlapping assignments' },
-        { layer: 'Database', icon: Database, text: 'Trigger validation: Enforce cfa_id.role=cfa AND cfp_id.role=cfp', tech: 'PL/pgSQL trigger enforce_assignment_roles()' }
-      ]
-    },
-    webhook: {
-      title: 'GHL Webhook Event Processing',
-      color: 'orange',
-      steps: [
-        { layer: 'GoHighLevel', icon: Cloud, text: 'Contact updated, opportunity stage changed, or tag modified', tech: 'GHL Webhook trigger configuration' },
-        { layer: 'GoHighLevel', icon: Cloud, text: 'POST webhook to api.floodsealsolutions.com/webhook/ghl', tech: 'HTTPS POST / JSON payload / Event type header' },
-        { layer: 'Bridge API', icon: Server, text: 'Authenticate webhook signature, parse event type (contact.update, opportunity.status_change)', tech: 'FastAPI endpoint / Request validation / Async processing' },
-        { layer: 'Database', icon: Database, text: 'Upsert contacts table: Sync GHL contact data to bridge DB', tech: 'INSERT ON CONFLICT UPDATE / Touch updated_at timestamp' },
-        { layer: 'Database', icon: Database, text: 'If opportunity.status = "won": Query referral_links for commission eligibility', tech: 'JOIN referral_links ON lead_id / Resolve CFA + CFP chain' },
-        { layer: 'Bridge API', icon: Server, text: 'Background task: Calculate commissions, insert into commission_ledger (future)', tech: 'Async worker queue / Commission rules engine' },
-        { layer: 'Bridge API', icon: Server, text: 'Background task: Send notification to assigned CFP via GHL SMS/Email', tech: 'Notification outbox pattern / Retry logic' },
-        { layer: 'Database', icon: Database, text: 'Insert notification_outbox: cfp_id, event_type, payload, sent_at=NULL', tech: 'Outbox table for reliable delivery / Worker polls for unsent' }
-      ]
-    },
-    commission: {
-      title: 'Commission Tracking & Attribution (Future)',
-      color: 'yellow',
-      steps: [
-        { layer: 'GoHighLevel', icon: Cloud, text: 'Opportunity marked "Closed Won" - $14,100 equipment sale', tech: 'GHL Opportunity pipeline / Stage transition webhook' },
-        { layer: 'Bridge API', icon: Server, text: 'Webhook received: opportunity.won event', tech: 'POST /webhook/ghl' },
-        { layer: 'Database', icon: Database, text: 'SELECT referral_links WHERE lead_id = opportunity.contact_id', tech: 'Immutable attribution query / Original referral chain' },
-        { layer: 'Database', icon: Database, text: 'Resolve: CFA (referrer) + CFP (rep) from referral_links snapshot', tech: 'Pre-computed at lead capture / No retroactive changes' },
-        { layer: 'Bridge API', icon: Server, text: 'Apply commission rules: CFA 5%, CFP 10%, Base rep 2%', tech: 'Configurable commission engine / Business rules' },
-        { layer: 'Database', icon: Database, text: 'INSERT commission_ledger: opportunity_id, cfa_id, cfa_amount=$705, cfp_id, cfp_amount=$1410, status=pending', tech: 'Double-entry ledger / Audit trail' },
-        { layer: 'Database', icon: Database, text: 'INSERT program_enrollments: Track CFA/CFP enrollment fees paid', tech: 'Fee tracking table / Payment status' },
-        { layer: 'Admin', icon: Shield, text: 'Admin reviews commission dashboard, approves payouts', tech: 'Future React dashboard / Commission approval workflow' },
-        { layer: 'Bridge API', icon: Server, text: 'POST /commission/payout - Mark commissions as paid', tech: 'Update commission_ledger.status = paid / paid_at timestamp' }
-      ]
-    }
-  };
+      const flows = {
+        lead: {
+          title: 'Lead Capture & Referral Attribution',
+          color: 'blue',
+          steps: [
+            { layer: 'User', icon: Users, text: 'Customer visits floodsealsolutions.com/?ref=nib_abc123', tech: 'Browser / URL Parameter' },
+            { layer: 'WordPress', icon: Globe, text: 'Elementor form captures: Name, Email, Phone, Property Address + referral token', tech: 'PHP 8.2 / Astra Child Theme / Custom Functions' },
+            { layer: 'Bridge API', icon: Server, text: 'POST to api.floodsealsolutions.com/referrer/nib_abc123 - Resolve token to CFA/CFP IDs + Names', tech: 'FastAPI (Python 3.11) / Uvicorn / SHA256 Token Hash Lookup' },
+            { layer: 'Database', icon: Database, text: 'Query referral_tokens table (hashed), join contacts table for display names, check referrer_rep_assignments for CFA→CFP mapping', tech: 'PostgreSQL 15 / Effective-dated temporal queries / btree_gist exclusion constraints' },
+            { layer: 'Bridge API', icon: Server, text: 'Return JSON: {contact_id, name, cfp_id, cfp_name} - Resolved referral hierarchy', tech: 'Pydantic models / JSON serialization' },
+            { layer: 'WordPress', icon: Globe, text: 'Create/update GHL contact with referrer metadata: Referrer_name, Referrer_contact_id, CFP_name, CFP_nib', tech: 'wp_remote_post to GHL API / Custom field mapping' },
+            { layer: 'GoHighLevel', icon: Cloud, text: 'Contact created with Lead Type = "Flood Lead", custom fields populated, tagged "potential-flood-customer"', tech: 'GHL REST API v2 / Location ID: 0eSS4yw5RxqXVkXbocGJ' },
+            { layer: 'Bridge API', icon: Server, text: 'Background task: Insert referral_links record (lead_id, cfa_id, cfp_id, owner_id, lead_kind="customer")', tech: 'Immutable audit trail / Created_at timestamp' },
+            { layer: 'WooCommerce', icon: DollarSign, text: 'Add Panel Protection Plan ($997) to cart, apply CFA discount if ref=cfa_*, redirect to checkout', tech: 'WC_Cart API / Session storage / Coupon validation' },
+            { layer: 'User', icon: Users, text: 'Complete Stripe payment ($997 or discounted)', tech: 'Stripe Checkout / PCI-compliant tokenization' }
+          ]
+        },
+        cfa: {
+          title: 'CFA (Agent) Signup & Token Issuance',
+          color: 'green',
+          steps: [
+            { layer: 'User', icon: Users, text: 'CFA applicant visits /cfa-signup, fills application with referral code', tech: 'Browser / Query param ?ref=nib_xyz789' },
+            { layer: 'WordPress', icon: Globe, text: 'Custom CFA form captures: Business info, licenses, referrer token', tech: 'PHP custom form / AJAX submission' },
+            { layer: 'Bridge API', icon: Server, text: 'Resolve referrer (could be CFP or another CFA), create GHL contact with role=CFA', tech: 'POST /lead/submit with lead_kind=cfa_application' },
+            { layer: 'GoHighLevel', icon: Cloud, text: 'Contact created with Lead Type = "CFA Lead", custom fields: Referrer_name, Referrer_contact_id', tech: 'GHL Contacts API / Custom field IDs from ghl:custom-fields.json' },
+            { layer: 'WooCommerce', icon: DollarSign, text: 'Add CFA Program ($499) to cart, apply referral discount if applicable', tech: 'Product ID: 1155 / WC_Cart / Session management' },
+            { layer: 'User', icon: Users, text: 'Complete payment ($499 or discounted)', tech: 'Stripe payment processing' },
+            { layer: 'WordPress', icon: Globe, text: 'woocommerce_payment_complete hook: Update GHL tags to "CFA-Paid", "CFA-Active"', tech: 'WooCommerce action hooks / GHL tag API' },
+            { layer: 'Bridge API', icon: Server, text: 'POST /token/issue - Generate unique referral token for new CFA', tech: 'secrets.token_urlsafe(16) / SHA256 hash / Store in referral_tokens table' },
+            { layer: 'Database', icon: Database, text: 'Insert referral_tokens: owner_id=CFA_contact_id, token_hash=sha256(nib), purpose="customer_funnel", expires_at=NULL', tech: 'Postgres INSERT / Enforce owner role=cfa or cfp via trigger' },
+            { layer: 'Bridge API', icon: Server, text: 'Return cleartext token ONCE: nib_generated_token (never stored)', tech: 'Return in API response only / Token displayed to user' },
+            { layer: 'GoHighLevel', icon: Cloud, text: 'Update contact custom field: Token_generated = nib_generated_token', tech: 'GHL Custom Fields API / Field ID: GHL_TOKEN_GENERATED_FIELD_ID' },
+            { layer: 'User', icon: Users, text: 'CFA receives email with referral link: floodsealsolutions.com/?ref=nib_generated_token', tech: 'GHL workflow automation / Email delivery' }
+          ]
+        },
+        cfp: {
+          title: 'CFP (Rep) Signup & Downline Assignment',
+          color: 'purple',
+          steps: [
+            { layer: 'User', icon: Users, text: 'CFP applicant visits /cfp-signup, submits application', tech: 'Browser form submission' },
+            { layer: 'WordPress', icon: Globe, text: 'CFP application form with sales experience, territory, credentials', tech: 'Custom PHP form handler' },
+            { layer: 'Bridge API', icon: Server, text: 'Create GHL contact with role=CFP, Lead Type = "CFP Lead"', tech: 'POST to GHL Contacts API' },
+            { layer: 'WooCommerce', icon: DollarSign, text: 'Add CFP Program ($1,000) to cart', tech: 'Product ID for CFP enrollment' },
+            { layer: 'User', icon: Users, text: 'Complete payment ($1,000)', tech: 'Stripe payment processing' },
+            { layer: 'WordPress', icon: Globe, text: 'Payment hook: Update GHL tags to "CFP-Paid", "CFP-Active", update contact role', tech: 'WooCommerce hooks / GHL API updates' },
+            { layer: 'Bridge API', icon: Server, text: 'POST /token/issue - Generate CFP referral token', tech: 'Token generation / Hashing / Storage' },
+            { layer: 'Database', icon: Database, text: 'Insert referral_tokens with owner_id=CFP_contact_id, purpose="cfa_recruitment"', tech: 'Postgres INSERT with role validation' },
+            { layer: 'Admin', icon: Shield, text: 'Admin assigns CFA downline to CFP via internal tool', tech: 'Future admin dashboard / Manual assignment for now' },
+            { layer: 'Bridge API', icon: Server, text: 'POST /rep/assign - Create referrer_rep_assignment record', tech: 'Effective-dated assignment / Overlap prevention' },
+            { layer: 'Database', icon: Database, text: 'INSERT referrer_rep_assignments: cfa_id, cfp_id, starts_at=NOW(), ends_at=NULL', tech: 'Temporal table with exclusion constraint / No overlapping assignments' },
+            { layer: 'Database', icon: Database, text: 'Trigger validation: Enforce cfa_id.role=cfa AND cfp_id.role=cfp', tech: 'PL/pgSQL trigger enforce_assignment_roles()' }
+          ]
+        },
+        webhook: {
+          title: 'GHL Webhook Event Processing',
+          color: 'orange',
+          steps: [
+            { layer: 'GoHighLevel', icon: Cloud, text: 'Contact updated, opportunity stage changed, or tag modified', tech: 'GHL Webhook trigger configuration' },
+            { layer: 'GoHighLevel', icon: Cloud, text: 'POST webhook to api.floodsealsolutions.com/webhook/ghl', tech: 'HTTPS POST / JSON payload / Event type header' },
+            { layer: 'Bridge API', icon: Server, text: 'Authenticate webhook signature, parse event type (contact.update, opportunity.status_change)', tech: 'FastAPI endpoint / Request validation / Async processing' },
+            { layer: 'Database', icon: Database, text: 'Upsert contacts table: Sync GHL contact data to bridge DB', tech: 'INSERT ON CONFLICT UPDATE / Touch updated_at timestamp' },
+            { layer: 'Database', icon: Database, text: 'If opportunity.status = "won": Query referral_links for commission eligibility', tech: 'JOIN referral_links ON lead_id / Resolve CFA + CFP chain' },
+            { layer: 'Bridge API', icon: Server, text: 'Background task: Calculate commissions, insert into commission_ledger (future)', tech: 'Async worker queue / Commission rules engine' },
+            { layer: 'Bridge API', icon: Server, text: 'Background task: Send notification to assigned CFP via GHL SMS/Email', tech: 'Notification outbox pattern / Retry logic' },
+            { layer: 'Database', icon: Database, text: 'Insert notification_outbox: cfp_id, event_type, payload, sent_at=NULL', tech: 'Outbox table for reliable delivery / Worker polls for unsent' }
+          ]
+        },
+        commission: {
+          title: 'Commission Tracking & Attribution (Future)',
+          color: 'yellow',
+          steps: [
+            { layer: 'GoHighLevel', icon: Cloud, text: 'Opportunity marked "Closed Won" - $14,100 equipment sale', tech: 'GHL Opportunity pipeline / Stage transition webhook' },
+            { layer: 'Bridge API', icon: Server, text: 'Webhook received: opportunity.won event', tech: 'POST /webhook/ghl' },
+            { layer: 'Database', icon: Database, text: 'SELECT referral_links WHERE lead_id = opportunity.contact_id', tech: 'Immutable attribution query / Original referral chain' },
+            { layer: 'Database', icon: Database, text: 'Resolve: CFA (referrer) + CFP (rep) from referral_links snapshot', tech: 'Pre-computed at lead capture / No retroactive changes' },
+            { layer: 'Bridge API', icon: Server, text: 'Apply commission rules: CFA 5%, CFP 10%, Base rep 2%', tech: 'Configurable commission engine / Business rules' },
+            { layer: 'Database', icon: Database, text: 'INSERT commission_ledger: opportunity_id, cfa_id, cfa_amount=$705, cfp_id, cfp_amount=$1410, status=pending', tech: 'Double-entry ledger / Audit trail' },
+            { layer: 'Database', icon: Database, text: 'INSERT program_enrollments: Track CFA/CFP enrollment fees paid', tech: 'Fee tracking table / Payment status' },
+            { layer: 'Admin', icon: Shield, text: 'Admin reviews commission dashboard, approves payouts', tech: 'Future React dashboard / Commission approval workflow' },
+            { layer: 'Bridge API', icon: Server, text: 'POST /commission/payout - Mark commissions as paid', tech: 'Update commission_ledger.status = paid / paid_at timestamp' }
+          ]
+        }
+      };
 
-  const techStack = [
-    { name: 'Frontend', icon: Globe, items: ['WordPress 6.x', 'Elementor Pro', 'Astra Child Theme', 'Custom PHP Functions', 'JavaScript ES6+', 'Responsive CSS3'] },
-    { name: 'Backend', icon: Server, items: ['FastAPI (Python 3.11)', 'Uvicorn ASGI server', 'Pydantic validation', 'Async/await patterns', 'RESTful API design'] },
-    { name: 'Database', icon: Database, items: ['PostgreSQL 15', 'SQLAlchemy ORM', 'Temporal tables', 'btree_gist extension', 'Exclusion constraints', 'PL/pgSQL triggers'] },
-    { name: 'Infrastructure', icon: Cloud, items: ['DigitalOcean Droplet (4 vCPU, 8GB RAM)', 'Ubuntu 22.04 LTS', 'Nginx reverse proxy', 'Docker Compose', 'Let\'s Encrypt SSL', 'Cloudflare DNS'] },
-    { name: 'Integrations', icon: Zap, items: ['GoHighLevel API v2', 'Stripe Checkout', 'WooCommerce REST API', 'Webhook event processing', 'Custom field mapping'] },
-    { name: 'Security', icon: Shield, items: ['SHA256 token hashing', 'PCI-compliant payments', 'SSH key auth (port 2222)', 'UFW firewall', 'Fail2Ban', 'Input validation'] }
-  ];
+      const techStack = [
+        { name: 'Frontend', icon: Globe, items: ['WordPress 6.x', 'Elementor Pro', 'Astra Child Theme', 'Custom PHP Functions', 'JavaScript ES6+', 'Responsive CSS3'] },
+        { name: 'Backend', icon: Server, items: ['FastAPI (Python 3.11)', 'Uvicorn ASGI server', 'Pydantic validation', 'Async/await patterns', 'RESTful API design'] },
+        { name: 'Database', icon: Database, items: ['PostgreSQL 15', 'SQLAlchemy ORM', 'Temporal tables', 'btree_gist extension', 'Exclusion constraints', 'PL/pgSQL triggers'] },
+        { name: 'Infrastructure', icon: Cloud, items: ['DigitalOcean Droplet (4 vCPU, 8GB RAM)', 'Ubuntu 22.04 LTS', 'Nginx reverse proxy', 'Docker Compose', 'Let\'s Encrypt SSL', 'Cloudflare DNS'] },
+        { name: 'Integrations', icon: Zap, items: ['GoHighLevel API v2', 'Stripe Checkout', 'WooCommerce REST API', 'Webhook event processing', 'Custom field mapping'] },
+        { name: 'Security', icon: Shield, items: ['SHA256 token hashing', 'PCI-compliant payments', 'SSH key auth (port 2222)', 'UFW firewall', 'Fail2Ban', 'Input validation'] }
+      ];
 
-  const dataFlow = [
-    { from: 'WordPress', to: 'Bridge API', data: 'Form submissions, referral tokens, customer data', protocol: 'HTTPS POST / JSON' },
-    { from: 'Bridge API', to: 'PostgreSQL', data: 'Contact records, referral links, token hashes, assignments', protocol: 'SQLAlchemy ORM / Prepared statements' },
-    { from: 'Bridge API', to: 'GoHighLevel', data: 'Contact creation/updates, custom fields, tags', protocol: 'GHL REST API / Bearer token auth' },
-    { from: 'GoHighLevel', to: 'Bridge API', data: 'Webhook events (contact updates, opportunity changes)', protocol: 'HTTPS POST / Webhook signatures' },
-    { from: 'WordPress', to: 'WooCommerce', data: 'Cart items, checkout data, payment processing', protocol: 'WC_Cart API / PHP functions' },
-    { from: 'WooCommerce', to: 'Stripe', data: 'Payment tokens, subscription billing', protocol: 'Stripe Checkout / PCI tokenization' },
-    { from: 'Bridge API', to: 'WordPress', data: 'Referrer resolution, token validation responses', protocol: 'JSON API responses' }
-  ];
+      const dataFlow = [
+        { from: 'WordPress', to: 'Bridge API', data: 'Form submissions, referral tokens, customer data', protocol: 'HTTPS POST / JSON' },
+        { from: 'Bridge API', to: 'PostgreSQL', data: 'Contact records, referral links, token hashes, assignments', protocol: 'SQLAlchemy ORM / Prepared statements' },
+        { from: 'Bridge API', to: 'GoHighLevel', data: 'Contact creation/updates, custom fields, tags', protocol: 'GHL REST API / Bearer token auth' },
+        { from: 'GoHighLevel', to: 'Bridge API', data: 'Webhook events (contact updates, opportunity changes)', protocol: 'HTTPS POST / Webhook signatures' },
+        { from: 'WordPress', to: 'WooCommerce', data: 'Cart items, checkout data, payment processing', protocol: 'WC_Cart API / PHP functions' },
+        { from: 'WooCommerce', to: 'Stripe', data: 'Payment tokens, subscription billing', protocol: 'Stripe Checkout / PCI tokenization' },
+        { from: 'Bridge API', to: 'WordPress', data: 'Referrer resolution, token validation responses', protocol: 'JSON API responses' }
+      ];
 
-  const dbSchema = [
-    { table: 'contacts', purpose: 'GHL contact sync', key_fields: 'ghl_contact_id (PK), email, phone, role (lead|cfa|cfp)', constraints: 'Unique email, role constraint, updated_at trigger' },
-    { table: 'referral_tokens', purpose: 'Token storage', key_fields: 'token_hash (PK SHA256), owner_id (FK), purpose, expires_at', constraints: 'Owner must be CFA or CFP (trigger), unique hash' },
-    { table: 'referrer_rep_assignments', purpose: 'CFA→CFP mapping', key_fields: 'cfa_id (FK), cfp_id (FK), starts_at, ends_at', constraints: 'Temporal exclusion constraint (no overlap), role validation trigger' },
-    { table: 'referral_links', purpose: 'Attribution audit', key_fields: 'lead_id (FK), cfa_id (FK), cfp_id (FK), owner_id, lead_kind, created_at', constraints: 'Immutable (no updates), unique lead_id, created_at default NOW()' },
-    { table: 'program_enrollments', purpose: 'Fee tracking', key_fields: 'contact_id (FK), program (cfa|cfp), fee_amount, paid_at, status', constraints: 'Status enum (pending|paid|refunded|cancelled)' },
-    { table: 'role_history', purpose: 'Role changes', key_fields: 'contact_id (FK), role_from, role_to, changed_at, note', constraints: 'Audit log (append-only)' }
-  ];
+      const dbSchema = [
+        { table: 'contacts', purpose: 'GHL contact sync', key_fields: 'ghl_contact_id (PK), email, phone, role (lead|cfa|cfp)', constraints: 'Unique email, role constraint, updated_at trigger' },
+        { table: 'referral_tokens', purpose: 'Token storage', key_fields: 'token_hash (PK SHA256), owner_id (FK), purpose, expires_at', constraints: 'Owner must be CFA or CFP (trigger), unique hash' },
+        { table: 'referrer_rep_assignments', purpose: 'CFA→CFP mapping', key_fields: 'cfa_id (FK), cfp_id (FK), starts_at, ends_at', constraints: 'Temporal exclusion constraint (no overlap), role validation trigger' },
+        { table: 'referral_links', purpose: 'Attribution audit', key_fields: 'lead_id (FK), cfa_id (FK), cfp_id (FK), owner_id, lead_kind, created_at', constraints: 'Immutable (no updates), unique lead_id, created_at default NOW()' },
+        { table: 'program_enrollments', purpose: 'Fee tracking', key_fields: 'contact_id (FK), program (cfa|cfp), fee_amount, paid_at, status', constraints: 'Status enum (pending|paid|refunded|cancelled)' },
+        { table: 'role_history', purpose: 'Role changes', key_fields: 'contact_id (FK), role_from, role_to, changed_at, note', constraints: 'Audit log (append-only)' }
+      ];
 
-  const activeFlowData = flows[activeFlow];
-  const colorMap = {
-    blue: 'bg-blue-500',
-    green: 'bg-green-500',
-    purple: 'bg-purple-500',
-    orange: 'bg-orange-500',
-    yellow: 'bg-yellow-500'
-  };
+      const activeFlowData = flows[activeFlow];
+      const colorMap = {
+        blue: 'bg-blue-500',
+        green: 'bg-green-500',
+        purple: 'bg-purple-500',
+        orange: 'bg-orange-500',
+        yellow: 'bg-yellow-500'
+      };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            FloodSeal Solutions
-          </h1>
-          <h2 className="text-3xl font-semibold mb-2">Enterprise-Grade System Architecture</h2>
-          <p className="text-xl text-slate-300">Multi-tier referral attribution, commission tracking, and CRM integration</p>
-          <div className="mt-4 inline-block bg-red-500/20 border border-red-500 rounded-lg px-6 py-3">
-            <p className="text-lg font-mono text-red-300">This is NOT a VA + GHL hustle stack. This is production-grade engineering.</p>
-          </div>
-        </div>
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white p-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-12">
+              <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                FloodSeal Solutions
+              </h1>
+              <h2 className="text-3xl font-semibold mb-2">Enterprise-Grade System Architecture</h2>
+              <p className="text-xl text-slate-300">Multi-tier referral attribution, commission tracking, and CRM integration</p>
+              <div className="mt-4 inline-block bg-red-500/20 border border-red-500 rounded-lg px-6 py-3">
+                <p className="text-lg font-mono text-red-300">This is NOT a VA + GHL hustle stack. This is production-grade engineering.</p>
+              </div>
+            </div>
 
-        {/* Flow Selection */}
-        <div className="mb-8">
-          <h3 className="text-2xl font-bold mb-4 text-center">Select Process Flow</h3>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {Object.entries(flows).map(([key, flow]) => (
-              <button
-                key={key}
-                onClick={() => setActiveFlow(key)}
-                className={`p-4 rounded-lg font-semibold transition-all transform hover:scale-105 ${
-                  activeFlow === key
-                    ? `${colorMap[flow.color]} text-white shadow-lg`
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                {flow.title}
-              </button>
-            ))}
-          </div>
-        </div>
+            <div className="mb-8">
+              <h3 className="text-2xl font-bold mb-4 text-center">Select Process Flow</h3>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {Object.entries(flows).map(([key, flow]) => (
+                  <button
+                    key={key}
+                    onClick={() => setActiveFlow(key)}
+                    className={`p-4 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+                      activeFlow === key
+                        ? `${colorMap[flow.color]} text-white shadow-lg`
+                        : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    }`}
+                  >
+                    {flow.title}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        {/* Active Flow Visualization */}
-        <div className="bg-slate-800/50 backdrop-blur rounded-2xl p-8 mb-8 border border-slate-700">
-          <h3 className="text-3xl font-bold mb-6 text-center">{activeFlowData.title}</h3>
-          <div className="space-y-4">
-            {activeFlowData.steps.map((step, idx) => {
-              const Icon = step.icon;
-              return (
-                <div key={idx} className="relative">
-                  <div className="flex items-start gap-4 bg-slate-900/50 rounded-lg p-4 border border-slate-700 hover:border-blue-500 transition-all">
-                    <div className={`${colorMap[activeFlowData.color]} p-3 rounded-lg flex-shrink-0`}>
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-lg text-blue-300">{step.layer}</span>
-                        <span className="text-xs font-mono bg-slate-700 px-3 py-1 rounded">{step.tech}</span>
+            <div className="bg-slate-800/50 backdrop-blur rounded-2xl p-8 mb-8 border border-slate-700">
+              <h3 className="text-3xl font-bold mb-6 text-center">{activeFlowData.title}</h3>
+              <div className="space-y-4">
+                {activeFlowData.steps.map((step, idx) => {
+                  const Icon = step.icon;
+                  return (
+                    <div key={idx} className="relative">
+                      <div className="flex items-start gap-4 bg-slate-900/50 rounded-lg p-4 border border-slate-700 hover:border-blue-500 transition-all">
+                        <div className={`${colorMap[activeFlowData.color]} p-3 rounded-lg flex-shrink-0`}>
+                          <Icon className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-bold text-lg text-blue-300">{step.layer}</span>
+                            <span className="text-xs font-mono bg-slate-700 px-3 py-1 rounded">{step.tech}</span>
+                          </div>
+                          <p className="text-slate-300 mb-1">{step.text}</p>
+                        </div>
+                        <div className="text-2xl font-bold text-slate-600">{idx + 1}</div>
                       </div>
-                      <p className="text-slate-300 mb-1">{step.text}</p>
+                      {idx < activeFlowData.steps.length - 1 && (
+                        <div className="flex justify-center my-2">
+                          <ArrowRight className={`${colorMap[activeFlowData.color].replace('bg-', 'text-')} w-6 h-6`} />
+                        </div>
+                      )}
                     </div>
-                    <div className="text-2xl font-bold text-slate-600">{idx + 1}</div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6 mb-8">
+              {techStack.map((stack, idx) => {
+                const Icon = stack.icon;
+                return (
+                  <div key={idx} className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Icon className="w-8 h-8 text-blue-400" />
+                      <h4 className="text-xl font-bold">{stack.name}</h4>
+                    </div>
+                    <ul className="space-y-2">
+                      {stack.items.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-1" />
+                          <span className="text-sm text-slate-300">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  {idx < activeFlowData.steps.length - 1 && (
-                    <div className="flex justify-center my-2">
-                      <ArrowRight className={`${colorMap[activeFlowData.color].replace('bg-', 'text-')} w-6 h-6`} />
+                );
+              })}
+            </div>
+
+            <div className="bg-slate-800/50 backdrop-blur rounded-2xl p-8 mb-8 border border-slate-700">
+              <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                <GitBranch className="w-8 h-8 text-purple-400" />
+                Inter-System Data Flow
+              </h3>
+              <div className="space-y-4">
+                {dataFlow.map((flow, idx) => (
+                  <div key={idx} className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold text-blue-300">{flow.from}</span>
+                      <ArrowRight className="text-purple-400 w-5 h-5" />
+                      <span className="font-bold text-green-300">{flow.to}</span>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Tech Stack Grid */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          {techStack.map((stack, idx) => {
-            const Icon = stack.icon;
-            return (
-              <div key={idx} className="bg-slate-800/50 backdrop-blur rounded-xl p-6 border border-slate-700">
-                <div className="flex items-center gap-3 mb-4">
-                  <Icon className="w-8 h-8 text-blue-400" />
-                  <h4 className="text-xl font-bold">{stack.name}</h4>
-                </div>
-                <ul className="space-y-2">
-                  {stack.items.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-1" />
-                      <span className="text-sm text-slate-300">{item}</span>
-                    </li>
-                  ))}
-                </ul>
+                    <p className="text-sm text-slate-300 mb-1">{flow.data}</p>
+                    <code className="text-xs bg-slate-800 px-2 py-1 rounded text-purple-300">{flow.protocol}</code>
+                  </div>
+                ))}
               </div>
-            );
-          })}
-        </div>
-
-        {/* Data Flow */}
-        <div className="bg-slate-800/50 backdrop-blur rounded-2xl p-8 mb-8 border border-slate-700">
-          <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
-            <GitBranch className="w-8 h-8 text-purple-400" />
-            Inter-System Data Flow
-          </h3>
-          <div className="space-y-4">
-            {dataFlow.map((flow, idx) => (
-              <div key={idx} className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold text-blue-300">{flow.from}</span>
-                  <ArrowRight className="text-purple-400 w-5 h-5" />
-                  <span className="font-bold text-green-300">{flow.to}</span>
-                </div>
-                <p className="text-sm text-slate-300 mb-1">{flow.data}</p>
-                <code className="text-xs bg-slate-800 px-2 py-1 rounded text-purple-300">{flow.protocol}</code>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Database Schema */}
-        <div className="bg-slate-800/50 backdrop-blur rounded-2xl p-8 border border-slate-700">
-          <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
-            <Database className="w-8 h-8 text-green-400" />
-            PostgreSQL 15 Schema Design
-          </h3>
-          <div className="space-y-4">
-            {dbSchema.map((table, idx) => (
-              <div key={idx} className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
-                <div className="flex items-center justify-between mb-2">
-                  <code className="font-bold text-lg text-green-300">{table.table}</code>
-                  <span className="text-sm text-slate-400 italic">{table.purpose}</span>
-                </div>
-                <p className="text-sm text-slate-300 mb-2 font-mono">{table.key_fields}</p>
-                <div className="text-xs text-yellow-300 bg-yellow-900/20 px-3 py-1 rounded border border-yellow-700">
-                  <Lock className="w-3 h-3 inline mr-1" />
-                  {table.constraints}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Footer Stats */}
-        <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4">
-            <div className="text-3xl font-bold text-blue-300">15+</div>
-            <div className="text-sm text-slate-300">API Endpoints</div>
-          </div>
-          <div className="bg-green-500/20 border border-green-500 rounded-lg p-4">
-            <div className="text-3xl font-bold text-green-300">8</div>
-            <div className="text-sm text-slate-300">Database Tables</div>
-          </div>
-          <div className="bg-purple-500/20 border border-purple-500 rounded-lg p-4">
-            <div className="text-3xl font-bold text-purple-300">3</div>
-            <div className="text-sm text-slate-300">System Layers</div>
-          </div>
-          <div className="bg-orange-500/20 border border-orange-500 rounded-lg p-4">
-            <div className="text-3xl font-bold text-orange-300">5</div>
-            <div className="text-sm text-slate-300">Core Flows</div>
-          </div>
-        </div>
-
-        {/* Why This Architecture */}
-        <div className="mt-12 bg-gradient-to-r from-red-500/20 to-orange-500/20 border-2 border-red-500 rounded-2xl p-8">
-          <h3 className="text-2xl font-bold mb-4 text-red-300">Why This is NOT a "VA + GHL Hustle Stack"</h3>
-          <div className="grid md:grid-cols-2 gap-6 text-slate-200">
-            <div>
-              <h4 className="font-bold text-lg mb-2 text-red-300">What They Think:</h4>
-              <ul className="space-y-2 text-sm">
-                <li>• Simple GHL forms with Zapier</li>
-                <li>• Manual referral tracking in spreadsheets</li>
-                <li>• Copy-paste contact IDs</li>
-                <li>• No real commission tracking</li>
-                <li>• Hope nobody games the system</li>
-              </ul>
             </div>
-            <div>
-              <h4 className="font-bold text-lg mb-2 text-green-300">What We Built:</h4>
-              <ul className="space-y-2 text-sm">
-                <li>✓ Custom FastAPI bridge with PostgreSQL (enterprise-grade)</li>
-                <li>✓ Immutable attribution with temporal database constraints</li>
-                <li>✓ Cryptographically secure token hashing (SHA256)</li>
-                <li>✓ Automated commission ledger with audit trail</li>
-                <li>✓ PL/pgSQL triggers preventing data corruption</li>
-                <li>✓ Webhook-driven event processing with retry logic</li>
-                <li>✓ RESTful API with Pydantic validation</li>
-                <li>✓ Exclusion constraints preventing overlapping assignments</li>
-              </ul>
+
+            <div className="bg-slate-800/50 backdrop-blur rounded-2xl p-8 border border-slate-700">
+              <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                <Database className="w-8 h-8 text-green-400" />
+                PostgreSQL 15 Schema Design
+              </h3>
+              <div className="space-y-4">
+                {dbSchema.map((table, idx) => (
+                  <div key={idx} className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <code className="font-bold text-lg text-green-300">{table.table}</code>
+                      <span className="text-sm text-slate-400 italic">{table.purpose}</span>
+                    </div>
+                    <p className="text-sm text-slate-300 mb-2 font-mono">{table.key_fields}</p>
+                    <div className="text-xs text-yellow-300 bg-yellow-900/20 px-3 py-1 rounded border border-yellow-700">
+                      <Lock className="w-3 h-3 inline mr-1" />
+                      {table.constraints}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4">
+                <div className="text-3xl font-bold text-blue-300">15+</div>
+                <div className="text-sm text-slate-300">API Endpoints</div>
+              </div>
+              <div className="bg-green-500/20 border border-green-500 rounded-lg p-4">
+                <div className="text-3xl font-bold text-green-300">8</div>
+                <div className="text-sm text-slate-300">Database Tables</div>
+              </div>
+              <div className="bg-purple-500/20 border border-purple-500 rounded-lg p-4">
+                <div className="text-3xl font-bold text-purple-300">3</div>
+                <div className="text-sm text-slate-300">System Layers</div>
+              </div>
+              <div className="bg-orange-500/20 border border-orange-500 rounded-lg p-4">
+                <div className="text-3xl font-bold text-orange-300">5</div>
+                <div className="text-sm text-slate-300">Core Flows</div>
+              </div>
+            </div>
+
+            <div className="mt-12 bg-gradient-to-r from-red-500/20 to-orange-500/20 border-2 border-red-500 rounded-2xl p-8">
+              <h3 className="text-2xl font-bold mb-4 text-red-300">Why This is NOT a "VA + GHL Hustle Stack"</h3>
+              <div className="grid md:grid-cols-2 gap-6 text-slate-200">
+                <div>
+                  <h4 className="font-bold text-lg mb-2 text-red-300">What You Think:</h4>
+                  <ul className="space-y-2 text-sm">
+                    <li>• Simple GHL forms with Zapier</li>
+                    <li>• Manual referral tracking in spreadsheets</li>
+                    <li>• Copy-paste contact IDs</li>
+                    <li>• No real commission tracking</li>
+                    <li>• Hope nobody games the system</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-bold text-lg mb-2 text-green-300">What I Built:</h4>
+                  <ul className="space-y-2 text-sm">
+                    <li>✓ Custom FastAPI bridge with PostgreSQL (enterprise-grade)</li>
+                    <li>✓ Immutable attribution with temporal database constraints</li>
+                    <li>✓ Cryptographically secure token hashing (SHA256)</li>
+                    <li>✓ Automated commission ledger with audit trail</li>
+                    <li>✓ PL/pgSQL triggers preventing data corruption</li>
+                    <li>✓ Webhook-driven event processing with retry logic</li>
+                    <li>✓ RESTful API with Pydantic validation</li>
+                    <li>✓ Exclusion constraints preventing overlapping assignments</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="mt-6 bg-slate-900/50 rounded-lg p-4 border border-red-700">
+                <p className="text-center text-lg font-semibold text-red-300">
+                  This architecture handles complex multi-tier referral hierarchies, prevents double-attribution, maintains audit compliance, and scales to thousands of CFAs/CFPs. Try doing THAT with Zapier.
+                </p>
+              </div>
             </div>
           </div>
-          <div className="mt-6 bg-slate-900/50 rounded-lg p-4 border border-red-700">
-            <p className="text-center text-lg font-semibold text-red-300">
-              This architecture handles complex multi-tier referral hierarchies, prevents double-attribution, maintains audit compliance, and scales to thousands of CFAs/CFPs. Try doing THAT with Zapier.
-            </p>
-          </div>
         </div>
-      </div>
-    </div>
-  );
-};
+      );
+    };
 
-export default FloodSealArchitecture;
+    ReactDOM.render(React.createElement(FloodSealArchitecture), document.getElementById('root'));
+  </script>
+</body>
+</html>
